@@ -9,7 +9,7 @@
   "type-check": "tsc -b --noEmit",
   "lint": "eslint .",
   "preview": "vite preview"
-}
+},
   "dependencies": {
     "@react-three/drei": "^10.7.6",
     "@react-three/fiber": "^9.4.0",
