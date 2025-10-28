@@ -1,4 +1,3 @@
-// src/App.tsx
 import { useState, useEffect, Suspense } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, PerspectiveCamera } from '@react-three/drei';
@@ -46,19 +45,25 @@ function Car3D({ color }: { color: string }) {
 }
 
 // ——— TOP PRO NAVBAR ———
-function TopNavbar() {
-  const [user, setUser] = useState<any>(null);
+function TopNavbar({ user, authLoading }: { user: any; authLoading: boolean }) {
   const [mobileMenu, setMobileMenu] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, setUser);
-    return unsubscribe;
-  }, []);
-
   const login = () => signInWithPopup(auth, googleProvider);
   const logout = () => signOut(auth);
+
+  if (authLoading) {
+    return (
+      <header style={{
+        position: 'fixed', top: 0, left: 0, right: 0,
+        background: 'rgba(10, 10, 10, 0.9)', backdropFilter: 'blur(12px)',
+        zIndex: 1000, padding: '1rem 2rem', textAlign: 'center', color: '#fff'
+      }}>
+        Loading...
+      </header>
+    );
+  }
 
   const navItems = [
     { path: '/', label: 'Home', icon: Home },
@@ -171,17 +176,13 @@ function TopNavbar() {
 }
 
 // ——— HOME PAGE ———
-function HomePage() {
+function HomePage({ user, authLoading }: { user: any; authLoading: boolean }) {
   const navigate = useNavigate();
-  const [user, setUser] = useState<any>(null);
-
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, setUser);
-    return unsubscribe;
-  }, []);
 
   const login = () => signInWithPopup(auth, googleProvider);
   const logout = () => signOut(auth);
+
+  if (authLoading) return <div style={{ paddingTop: '100px', textAlign: 'center', color: '#fff' }}>Loading...</div>;
 
   return (
     <div style={{ paddingTop: '100px', minHeight: '100vh', background: 'linear-gradient(135deg, #0f0f0f, #1a1a2e)' }}>
@@ -232,23 +233,16 @@ function HomePage() {
           Start Building
         </button>
       </div>
-      <TopNavbar />
+      <TopNavbar user={user} authLoading={authLoading} />
     </div>
   );
 }
 
 // ——— BUILDER PAGE ———
-function BuilderPage() {
+function BuilderPage({ user, authLoading }: { user: any; authLoading: boolean }) {
   const [build, setBuild] = useState<Build>({ car: 'sports', color: '#ff3b30', wheel: 'Classic', spoiler: 'None', interior: 'Black', uid: '' });
-  const [user, setUser] = useState<any>(null);
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (u) => {
-      setUser(u);
-      if (u) setBuild(prev => ({ ...prev, uid: u.uid }));
-    });
-    return unsubscribe;
-  }, []);
+  if (authLoading) return <div style={{ paddingTop: '100px', textAlign: 'center', color: '#fff' }}>Loading...</div>;
 
   const saveBuild = async () => {
     if (!user) return alert("Please sign in first!");
@@ -350,27 +344,25 @@ function BuilderPage() {
           </div>
         </div>
       </div>
-      <TopNavbar />
+      <TopNavbar user={user} authLoading={authLoading} />
     </div>
   );
 }
 
 // ——— GALLERY PAGE ———
-function GalleryPage() {
+function GalleryPage({ user, authLoading }: { user: any; authLoading: boolean }) {
   const [savedBuilds, setSavedBuilds] = useState<Build[]>([]);
-  const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (u) => {
-      setUser(u);
-      if (u) {
-        const q = query(collection(db, 'builds'), where('uid', '==', u.uid));
-        const snapshot = await getDocs(q);
+    if (user) {
+      const q = query(collection(db, 'builds'), where('uid', '==', user.uid));
+      getDocs(q).then(snapshot => {
         setSavedBuilds(snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id } as Build)));
-      }
-    });
-    return unsubscribe;
-  }, []);
+      });
+    }
+  }, [user]);
+
+  if (authLoading) return <div style={{ paddingTop: '100px', textAlign: 'center', color: '#fff' }}>Loading...</div>;
 
   return (
     <div style={{ paddingTop: '100px', minHeight: '100vh', background: '#0a0a0a' }}>
@@ -421,23 +413,35 @@ function GalleryPage() {
           </div>
         )}
       </div>
-      <TopNavbar />
+      <TopNavbar user={user} authLoading={authLoading} />
     </div>
   );
 }
 
 // ——— MAIN APP ———
 export default function App() {
+  const [user, setUser] = useState<any>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+
+  // ONE GLOBAL AUTH LISTENER
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      setAuthLoading(false);
+    });
+    return unsubscribe;
+  }, []);
+
   return (
     <>
       <Routes>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/builder" element={<BuilderPage />} />
-        <Route path="/gallery" element={<GalleryPage />} />
+        <Route path="/" element={<HomePage user={user} authLoading={authLoading} />} />
+        <Route path="/builder" element={<BuilderPage user={user} authLoading={authLoading} />} />
+        <Route path="/gallery" element={<GalleryPage user={user} authLoading={authLoading} />} />
         <Route path="/checkout" element={
           <div style={{ paddingTop: '100px', textAlign: 'center', minHeight: '100vh', color: '#fff' }}>
             <h1 style={{ fontSize: '3rem' }}>Checkout Coming Soon</h1>
-            <TopNavbar />
+            <TopNavbar user={user} authLoading={authLoading} />
           </div>
         } />
       </Routes>
